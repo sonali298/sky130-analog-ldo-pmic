@@ -1,4 +1,4 @@
-# analog-pmic-sky130
+# SKY130 1.8V-to-1.2V LDO Regulator & Two-Stage Miller OTA
 
 A two-stage Miller-compensated OTA and the LDO regulator built around it, in SKY130
 130 nm. Every transistor is sized from measured gm/Id data, every specification is
