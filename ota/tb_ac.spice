@@ -1,0 +1,54 @@
+* OTA open-loop AC response: DC gain, unity-gain frequency, phase margin
+*
+* Measuring open-loop gain is awkward because the amplifier needs feedback to sit at a
+* sane DC operating point, and feedback is exactly what destroys the measurement. The
+* standard trick separates the two by frequency:
+*
+*   Lfb (1 TH) from vout to vinn  -- a short at DC, an open at any AC frequency
+*   Cfb (1 TF) from vinn to vcm   -- an open at DC, a short at any AC frequency
+*
+* So at DC the amplifier is a unity-gain buffer and vout settles at vcm; at AC vinn is
+* held at signal ground and the stage runs fully open-loop. No component of this network
+* is physical -- it exists only to let one deck do both jobs.
+*
+* Polarity check: vinp rising raises M1's current, pulling s1o down, which raises the
+* PMOS second stage's |Vgs| and drives vout up. vinp is genuinely the non-inverting
+* input, so the low-frequency phase should be ~0 deg and PM = 180 + phase(UGF).
+
+.include "../models/sky130_18v_tt.spice"
+.include "ota_core.spice"
+
+Vdd  vdd 0 1.8
+Vcm  vcm 0 1.2
+Vin  vinp vcm DC 0 AC 1
+
+Lfb  vout vinn 1T
+Cfb  vinn vcm  1T
+
+XB   vdd 0 vbias_n otabias
+XO   vinp vinn vout vdd 0 vbias_n ota
+
+CL   vout 0 5p
+
+.control
+op
+print v(vout)
+
+ac dec 100 0.1 1G
+
+meas ac a0_db     find vdb(vout) at=1
+meas ac ugf       when vdb(vout)=0 fall=1
+meas ac ph_ugf    find vp(vout)   when vdb(vout)=0 fall=1
+meas ac f_3db     when vdb(vout)=a0_db-3 fall=1
+meas ac ph_min    min vp(vout) from=1 to=1G
+
+let pm = 180 + ph_ugf
+echo ""
+echo "=== open-loop AC results ==="
+print a0_db
+print f_3db
+print ugf
+print ph_ugf
+print pm
+.endc
+.end

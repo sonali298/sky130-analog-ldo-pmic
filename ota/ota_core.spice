@@ -1,0 +1,37 @@
+* Two-stage Miller-compensated OTA, SKY130 1.8V
+*
+* Every width below was produced by scripts/size_ota.py from measured gm/Id curves:
+* each device is specified as (target current, target gm/Id) and the width follows
+* from the interpolated current density. Re-run that script to change the design.
+*
+* Targets: GBW 10 MHz, PM >= 60 deg, SR 10 V/us into CL = 5 pF.
+*
+* Ports: vinp vinn vout vdd vss vbias_n
+.subckt ota vinp vinn vout vdd vss vbias_n
+
+* ---- first stage: NMOS pair, PMOS mirror load
+XM1 s1o  vinp tail vss  sky130_fd_pr__nfet_01v8 W=3.469u L=1u
+XM2 s1x  vinn tail vss  sky130_fd_pr__nfet_01v8 W=3.469u L=1u
+XM3 s1x  s1x  vdd  vdd  sky130_fd_pr__pfet_01v8 W=25.676u L=1u
+XM4 s1o  s1x  vdd  vdd  sky130_fd_pr__pfet_01v8 W=25.676u L=1u
+XM5 tail vbias_n vss vss sky130_fd_pr__nfet_01v8 W=4.117u L=1u
+
+* ---- second stage: PMOS common source with NMOS current sink
+XM6 vout s1o  vdd  vdd  sky130_fd_pr__pfet_01v8 W=46.478u L=1u m=3
+XM7 vout vbias_n vss vss sky130_fd_pr__nfet_01v8 W=11.178u L=1u
+
+* ---- Miller compensation with nulling resistor
+* Cc alone creates a right-half-plane zero at gm6/Cc: the feedforward path through Cc
+* adds phase lag exactly where the loop needs margin. Rz pushes that zero to
+* gm6/Cc * 1/(1 - gm6*Rz); at Rz = (1/gm6)(1 + CL/Cc) it lands on the non-dominant
+* pole and cancels it instead of fighting it.
+Rz  s1o  z  4604
+Cc  z    vout 2.000p
+
+.ends ota
+
+* ---- bias generator: Iref into a diode-connected NMOS sets vbias_n for M5 and M7
+.subckt otabias vdd vss vbias_n
+Iref vdd vbias_n 10u
+XM8 vbias_n vbias_n vss vss sky130_fd_pr__nfet_01v8 W=2.058u L=1u
+.ends otabias

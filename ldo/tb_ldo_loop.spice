@@ -1,0 +1,46 @@
+* LDO loop gain vs load, by series voltage injection in the feedback path.
+*
+* The obvious "break the loop with a big inductor" trick fails here. Tying vout to the
+* feedback node through an inductor also ties it to the ideal reference source at DC, so
+* the load current flows out through that source instead of through the pass device --
+* the pass device's operating point never changes and every load reports an identical
+* loop gain.
+*
+* Series injection avoids that: Vinj has DC = 0, so the DC feedback path is untouched and
+* the regulator biases itself normally with the load flowing where it should. At AC the
+* source splits the loop, and with v(fb) = v(vout) - Vinj the algebra gives
+*     loop gain  =  v(vout) / v(fb)
+.include "../models/sky130_18v_tt.spice"
+.include "../ota/ota_core.spice"
+Vin  vin 0 1.8
+Vref vref 0 1.2
+XB   vin 0 vbias_n otabias
+XMP  vout ea_out vin vin sky130_fd_pr__pfet_01v8 W=45u L=0.15u m=4
+Vinj vout fb DC 0 AC 1
+XEA  fb vref ea_out vin 0 vbias_n ota
+Iload vout 0 1m
+Resr vout esr {RESR}
+CLoad esr 0 1u
+.param RESR=0.5
+.control
+option temp=27
+foreach esrv 0.05 0.2 0.5 1 2
+ alterparam RESR=$esrv
+ reset
+ foreach ld 0.1m 10m
+  reset
+  alter Iload = $ld
+  op
+  ac dec 100 1 100Meg
+  let T     = v(vout)/v(fb)
+  let Tdb   = db(T)
+  let Tph   = 180/PI*ph(T)
+  meas ac dcg find Tdb at=1
+  meas ac ugf when Tdb=0 fall=1
+  meas ac phu find Tph when Tdb=0 fall=1
+  echo "ESR=$esrv LOAD=$ld"
+  print dcg ugf phu
+end
+end
+.endc
+.end

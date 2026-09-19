@@ -1,0 +1,30 @@
+* LDO line regulation, PSRR, and loop stability vs load
+.include "../models/sky130_18v_tt.spice"
+.include "../ota/ota_core.spice"
+.include "ldo.spice"
+Vin  vin 0 DC 1.8 AC 1
+Vref vref 0 1.2
+XB   vin 0 vbias_n otabias
+XL   vin vout vref 0 vbias_n ldo
+Iload vout 0 10m
+CLoad vout 0 1u
+.control
+* --- line regulation
+alter Vin ac=0
+dc Vin 1.4 1.8 0.02
+let vo = v(vout)
+meas dc vo_lo find v(vout) at=1.5
+meas dc vo_hi find v(vout) at=1.8
+echo "--- line regulation ---"
+print vo_lo vo_hi
+* --- PSRR
+alter Vin ac=1
+reset
+ac dec 50 1 10Meg
+meas ac psrr_1k   find vdb(vout) at=1k
+meas ac psrr_10k  find vdb(vout) at=10k
+meas ac psrr_100k find vdb(vout) at=100k
+echo "--- PSRR (dB, negative = rejection) ---"
+print psrr_1k psrr_10k psrr_100k
+.endc
+.end

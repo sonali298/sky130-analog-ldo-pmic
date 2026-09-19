@@ -1,0 +1,75 @@
+* OTA DC operating point -- verify every device sits in saturation
+*
+* Before any AC number means anything, each transistor has to be in the region the
+* small-signal model assumes. The check is Vds > Vdsat (overdrive), device by device.
+* With SKY130's asymmetric thresholds (nfet 0.577 V, pfet 1.03 V) against a 1.8 V rail
+* this is the binding constraint on the whole design, not a formality.
+
+.include "../models/sky130_18v_tt.spice"
+.include "ota_core.spice"
+
+Vdd  vdd 0 1.8
+Vcm  vcm 0 1.2
+
+XB   vdd 0 vbias_n otabias
+
+* Unity-gain feedback: vinn tied to vout. With both inputs simply tied to vcm the
+* output node is unconstrained -- the stage is open-loop with zero differential input,
+* so vout drifts to whatever numerical residue dictates rather than to a real operating
+* point. Closing the loop forces vout to vcm and puts every device where it will
+* actually sit in use.
+XO   vcm vout vout vdd 0 vbias_n ota
+
+CL   vout 0 5p
+
+.control
+op
+
+echo "=== node voltages ==="
+print v(vout) v(vbias_n) v(xo.tail) v(xo.s1o) v(xo.s1x)
+
+echo ""
+echo "=== device operating regions (Vds must exceed Vdsat) ==="
+* first stage
+let m1_vgs  = @m.xo.xm1.msky130_fd_pr__nfet_01v8[vgs]
+let m1_vds  = @m.xo.xm1.msky130_fd_pr__nfet_01v8[vds]
+let m1_vdst = @m.xo.xm1.msky130_fd_pr__nfet_01v8[vdsat]
+let m1_id   = @m.xo.xm1.msky130_fd_pr__nfet_01v8[id]
+let m1_gm   = @m.xo.xm1.msky130_fd_pr__nfet_01v8[gm]
+print m1_vgs m1_vds m1_vdst m1_id m1_gm
+
+let m3_vgs  = @m.xo.xm3.msky130_fd_pr__pfet_01v8[vgs]
+let m3_vds  = @m.xo.xm3.msky130_fd_pr__pfet_01v8[vds]
+let m3_vdst = @m.xo.xm3.msky130_fd_pr__pfet_01v8[vdsat]
+print m3_vgs m3_vds m3_vdst
+
+let m4_vgs  = @m.xo.xm4.msky130_fd_pr__pfet_01v8[vgs]
+let m4_vds  = @m.xo.xm4.msky130_fd_pr__pfet_01v8[vds]
+let m4_vdst = @m.xo.xm4.msky130_fd_pr__pfet_01v8[vdsat]
+print m4_vgs m4_vds m4_vdst
+
+let m5_vgs  = @m.xo.xm5.msky130_fd_pr__nfet_01v8[vgs]
+let m5_vds  = @m.xo.xm5.msky130_fd_pr__nfet_01v8[vds]
+let m5_vdst = @m.xo.xm5.msky130_fd_pr__nfet_01v8[vdsat]
+let m5_id   = @m.xo.xm5.msky130_fd_pr__nfet_01v8[id]
+print m5_vgs m5_vds m5_vdst m5_id
+
+* second stage
+let m6_vgs  = @m.xo.xm6.msky130_fd_pr__pfet_01v8[vgs]
+let m6_vds  = @m.xo.xm6.msky130_fd_pr__pfet_01v8[vds]
+let m6_vdst = @m.xo.xm6.msky130_fd_pr__pfet_01v8[vdsat]
+let m6_id   = @m.xo.xm6.msky130_fd_pr__pfet_01v8[id]
+let m6_gm   = @m.xo.xm6.msky130_fd_pr__pfet_01v8[gm]
+print m6_vgs m6_vds m6_vdst m6_id m6_gm
+
+let m7_vgs  = @m.xo.xm7.msky130_fd_pr__nfet_01v8[vgs]
+let m7_vds  = @m.xo.xm7.msky130_fd_pr__nfet_01v8[vds]
+let m7_vdst = @m.xo.xm7.msky130_fd_pr__nfet_01v8[vdsat]
+let m7_id   = @m.xo.xm7.msky130_fd_pr__nfet_01v8[id]
+print m7_vgs m7_vds m7_vdst m7_id
+
+echo ""
+echo "=== supply current ==="
+print -i(Vdd)
+.endc
+.end

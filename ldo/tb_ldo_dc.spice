@@ -1,0 +1,17 @@
+* LDO load and line regulation
+.include "../models/sky130_18v_tt.spice"
+.include "../ota/ota_core.spice"
+.include "ldo.spice"
+
+Vin  vin 0 1.8
+Vref vref 0 1.2
+XB   vin 0 vbias_n otabias
+XL   vin vout vref 0 vbias_n ldo
+Iload vout 0 1m
+CLoad vout 0 1u
+.control
+* --- load regulation: sweep load current at fixed Vin
+dc Iload 0.1m 30m 0.5m
+print v(vout)
+.endc
+.end

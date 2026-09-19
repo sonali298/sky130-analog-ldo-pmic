@@ -1,0 +1,37 @@
+* Low-dropout regulator: 1.8 V in, 1.2 V out, using the two-stage OTA as error amplifier.
+*
+* Loop: the OTA compares VOUT against VREF and drives the gate of a large PMOS pass
+* device. Falling VOUT raises |Vgs| on the pass device, which sources more current and
+* pushes VOUT back up.
+*
+* Why there is no feedback divider. A conventional LDO divides VOUT down to a low
+* reference (typically 0.6-0.8 V) so that one reference can serve many output voltages.
+* That is not available here: the error amplifier's measured input common-mode range is
+* 0.94-1.38 V, bounded below by the tail device's saturation and above by the input pair
+* leaving saturation -- a direct consequence of SKY130's 1.03 V pfet threshold against a
+* 1.8 V rail. A 0.6 V feedback node would sit outside it and the loop would not regulate.
+* So VOUT is fed back directly and VREF is set to the target 1.2 V, which lands mid-ICMR.
+* The cost is that VOUT is no longer programmable without changing VREF; the benefit is
+* that the loop actually works. Widening the ICMR (rail-to-rail input stage, or a folded
+* cascode with a PMOS pair for the low end) is what would buy the divider back.
+*
+* The pass device is drawn at L = 0.15 um, the process minimum, rather than the 1 um used
+* everywhere in the OTA. Output resistance is irrelevant for a pass device -- it is a
+* switch delivering current, not a gain stage -- and short-channel current density is what
+* keeps its width manageable.
+
+.subckt ldo vin vout vref vss vbias_n
+* pass device: sized for the target load at the dropout budget
+XMP vout ea_out vin vin sky130_fd_pr__pfet_01v8 W=45u L=0.15u m=4
+
+* Error amplifier. Feedback returns to the NON-inverting input, which looks wrong until
+* the pass device is counted: a PMOS in common-source is itself an inverting stage, so
+* the loop already contains one inversion. Routing feedback to the inverting input adds
+* a second and makes the loop positive -- the first version of this file did exactly
+* that, and the regulator sat with the pass device fully on, vout pinned near vin and
+* drooping with load instead of regulating.
+*
+* As connected: vout rises -> vinp rises -> ea_out rises -> |Vgs| of the pass device
+* falls -> less current -> vout falls back. Negative, as required.
+XEA vout vref ea_out vin vss vbias_n ota
+.ends ldo

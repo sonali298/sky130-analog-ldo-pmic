@@ -1,0 +1,26 @@
+* Minimal SKY130 1.8V device library -- tt corner.
+*
+* Only nfet_01v8 / pfet_01v8 are pulled in. The PDK's own corner file also drags
+* in 5V, 20V, ESD and RF devices this design never instantiates, and one of those
+* includes is broken in the standalone PDK repo.
+*
+* Two things worth recording, because both fail silently rather than loudly:
+*
+* 1. The model definitions live in the *.pm3.spice files (.subckt + binned
+*    .model statements). The *.corner.spice files are only .param overrides
+*    that those models consume. Including the corner file alone gives
+*    "could not find a valid modelname" -- the subckt exists but has no models.
+*
+* 2. critical.spice contains ".param sky130_fd_pr__pfet_01v8 = 0.0" -- a
+*    parameter whose name collides exactly with the pfet subcircuit. ngspice
+*    resolves the name to the parameter, so every pfet instantiation fails with
+*    "unknown subckt" while nfet works fine (it has no such collision). That one
+*    line is stripped in patched/critical_nocollide.spice; everything else in
+*    the file is kept.
+.include "/tmp/sky130_pr/models/parameters/invariant.spice"
+.include "patched/critical_nocollide.spice"
+.include "/tmp/sky130_pr/models/parameters/lod.spice"
+.include "/tmp/sky130_pr/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__tt.pm3.spice"
+.include "/tmp/sky130_pr/cells/nfet_01v8/sky130_fd_pr__nfet_01v8__mismatch.corner.spice"
+.include "/tmp/sky130_pr/cells/pfet_01v8/sky130_fd_pr__pfet_01v8__tt.pm3.spice"
+.include "/tmp/sky130_pr/cells/pfet_01v8/sky130_fd_pr__pfet_01v8__mismatch.corner.spice"
